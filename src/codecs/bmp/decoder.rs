@@ -629,9 +629,8 @@ impl<'a, R: Read> Iterator for RLEInsnIterator<'a, R> {
 }
 
 impl<R: Read + Seek> BmpDecoder<R> {
-    /// Create a new decoder that decodes from the stream ```r```
-    pub fn new(reader: R) -> ImageResult<BmpDecoder<R>> {
-        let mut decoder = BmpDecoder {
+    fn new_decoder(reader: R) -> BmpDecoder<R> {
+        BmpDecoder {
             reader,
 
             bmp_header_type: BMPHeaderType::Info,
@@ -650,35 +649,28 @@ impl<R: Read + Seek> BmpDecoder<R> {
             colors_used: 0,
             palette: None,
             bitfields: None,
-        };
+        }
+    }
 
+    /// Create a new decoder that decodes from the stream ```r```
+    pub fn new(reader: R) -> ImageResult<BmpDecoder<R>> {
+        let mut decoder = Self::new_decoder(reader);
+        decoder.read_metadata()?;
+        Ok(decoder)
+    }
+
+    /// Create a new decoder that decodes from the stream ```r``` without first
+    /// reading a BITMAPFILEHEADER
+    pub fn new_without_file_header(reader: R) -> ImageResult<BmpDecoder<R>> {
+        let mut decoder = Self::new_decoder(reader);
+        decoder.no_file_header = true;
         decoder.read_metadata()?;
         Ok(decoder)
     }
 
     #[cfg(feature = "ico")]
     pub(crate) fn new_with_ico_format(reader: R) -> ImageResult<BmpDecoder<R>> {
-        let mut decoder = BmpDecoder {
-            reader,
-
-            bmp_header_type: BMPHeaderType::Info,
-            indexed_color: false,
-
-            width: 0,
-            height: 0,
-            data_offset: 0,
-            top_down: false,
-            no_file_header: false,
-            add_alpha_channel: false,
-            has_loaded_metadata: false,
-            image_type: ImageType::Palette,
-
-            bit_count: 0,
-            colors_used: 0,
-            palette: None,
-            bitfields: None,
-        };
-
+        let mut decoder = Self::new_decoder(reader);
         decoder.read_metadata_in_ico_format()?;
         Ok(decoder)
     }
